@@ -2,14 +2,10 @@ var express = require('express')
 var bodyParser = require('body-parser')
 var multer = require('multer')
 var mongoose = require('mongoose');
-var spawn = require("child_process").execFileSync;
-var sys = require('sys')
 var crypto = require('crypto');
-var PythonShell = require('python-shell');
 var MongoClient = require('mongodb').MongoClient;
 var assert = require('assert');
 var Twitter = require('twitter');
-var fs = require('fs');
 var shell = require('shelljs');
 
 var url = "mongodb://localhost:27017/test"
@@ -17,7 +13,7 @@ var url = "mongodb://localhost:27017/test"
 // multer
 var storage = multer.diskStorage({
 	destination: function(req, file, cb){
-		cb(null, 'uploads/')
+		cb(null, 'public/uploads/')
 	},
 	filename: function(req, file, cb){
 		crypto.pseudoRandomBytes(16, function (err, raw) {
@@ -27,6 +23,19 @@ var storage = multer.diskStorage({
 })
 
 var upload = multer({storage: storage})
+
+// multer feed lbph algorithms
+
+var save_storage = multer.diskStorage({
+	destination: function(req, file, cb){
+		cb(null, 'public/pictures/')
+	},
+	filename: function(req, file, cb){
+    cb(null, number() + '.jpg')
+	}
+})
+
+var save = multer({storage: save_storage})
 
 // twitter api
 var client = new Twitter({
@@ -56,10 +65,17 @@ var find = function(db, file, callback) {
    });
 };
 
+// miscellanious functions
+
+function number() {
+  return shell.exec("python count.py", { silent:true }).output;
+}
+
 // express
 
 var app = express()
-app.use(express.static('uploads'));
+//app.use(express.static('uploads'));
+app.use(express.static('public'))
 
 // parse application/x-www-form-urlencoded
 
@@ -106,20 +122,20 @@ app.get('/', function(req, res){
 })
 
 app.post('/', upload.single('picture'), function(req, res){
+	var arg = "public/uploads/" + req.file.filename
 	var options = {
-		args: ["uploads/" + req.file.filename]
+		args: [arg]
 	}
-	// run eigen.py
-	PythonShell.run('eigen.py', options, function (err, results) {
-	  if (err) throw err;
-	  console.log('finished');
-	  // grab person's info
-	  MongoClient.connect(url, function(err, db) {
+
+	shell.exec("python py/recognize.py " + arg, function(code, stdout, stderr){
+		if(stderr) throw stderr;
+		console.log('finished')
+
+		// something about these callbacks dont work
+		MongoClient.connect(url, function(err, db) {
 		  assert.equal(null, err);
-		  find(db, results, function(doc) {
-		  		console.dir(doc)
+		  find(db, stdout, function(doc) {
 		  		console.log(doc.name)
-		  		console.log(doc.fb)
 		  		console.log(doc.tw)
 		  		var params = {screen_name: doc.tw, count: 5};
 		  		// get person's latest 5 tweets
@@ -133,11 +149,10 @@ app.post('/', upload.single('picture'), function(req, res){
 		      db.close();
 		  });
 		});
-
-	});
+	})
 })
 
-app.post('/add_picture', store.single('picture'), function(req, res){
+app.post('/add_picture', save.single('save'), function(req, res){
 	// post user id as well?
 	var id = mongoose.Types.ObjectId("56f6b6d56e401f4010071db8") // need to change this line or something
 	var picture = "pictures/" + req.file.filename
@@ -148,18 +163,19 @@ app.post('/add_picture', store.single('picture'), function(req, res){
 	res.send("uploaded! training...")
 })
 
-app.post('/new', function(req, res){
+app.post('/new', save.array('save', 100), function(req, res){
 	// post an array of pictures? ~ 100+ pictures
 	var user = new User ({
 		name: req.body.name,
 		fb: req.body.fb,
 		tw: req.body.tw,
-		pictures: []
+		pictures: req.files
 	})
 	user.save(function(err, user){
-		console.dir(user)
+		var arr = req.files.map(function(a) {return a.path;});
+		shell.exec('python update.py "' + arr + '"')
 	})
-	res.send(user)
+	res.send("Saved pictures")
 })
 
 app.get('/about', function(req, res){

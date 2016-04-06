@@ -1,0 +1,18 @@
+body {
+    text-align: center;
+    font-size: 14px;
+
+}
+
+input[type=file]
+{
+    text-align: center;
+    display: block;
+    margin: 0 auto;
+
+}
+
+img {
+    max-width: 25%;
+    height: auto;
+}
