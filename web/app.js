@@ -161,9 +161,8 @@ app.post('/new', save.array('save', 200), function(req, res){
 	console.log(req.files)
 	if(!req.body.name && !req.body.fb && !req.body.tw){
 		res.send("Something isn't filled out")
-	} else if(req.files > 0){
+	} else if(req.files.length > 0){
 		var arr = req.files.map(function(a) {return a.path;});
-
 		var user = new User ({
 			name: req.body.name,
 			fb: req.body.fb,
