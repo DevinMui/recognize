@@ -10,9 +10,12 @@
 		<img src="<%= image %>"/>
 		<!--add twitter here-->
 	<% } %>
-    <% for (i=0;i<tweets.length;i++) { %>
-        <p><%= tweets[i].text %></p>
-    <% } %>
+	<% if(name) {%>
+		<h3><%= name %></h3>
+	<% } %>
+  <% for (i=0;i<tweets.length;i++) { %>
+      <p><%= tweets[i].text %></p>
+  <% } %>
 	<form role="form" action="/" method="post" enctype="multipart/form-data">
 		<input class=".form-control" type="file" id="file" name="picture">
     </br>

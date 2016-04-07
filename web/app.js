@@ -59,9 +59,7 @@ var find = function(db, file, callback) {
 	var cursor = db.collection('users').find({"pictures": file});
 	cursor.each(function(err, doc) {
 	  assert.equal(err, null);
-	  //console.dir(doc + "MOTHERFUCKING NULL SHIT")
 	  if(doc != null){
-	  	console.dir(doc)
 	  	callback(doc)
 		}
 	});
@@ -110,7 +108,7 @@ app.get('/add_face', function(req, res){
 })
 
 app.get('/', function(req, res){
-	res.render('index', {"image": "", "tweets": ""})
+	res.render('index', {"image": "", "tweets": "", "name": ""})
 })
 
 app.post('/', upload.single('picture'), function(req, res){
@@ -118,9 +116,7 @@ app.post('/', upload.single('picture'), function(req, res){
 		var arg = "public/uploads/" + req.file.filename
 
 		shell.exec("python py/recognize.py " + arg, function(code, stdout, stderr){
-			console.log(stderr)
 			if(stderr) {
-				console.log(stderr)
 				res.send(stderr)
 			} else {
 				MongoClient.connect(url, function(err, db) {
@@ -132,7 +128,7 @@ app.post('/', upload.single('picture'), function(req, res){
 			  		// get person's latest 5 tweets
 						client.get('statuses/user_timeline', params, function(error, tweets, response){
 						  if (!error) {
-						    res.render("index", {"image": "uploads/" + req.file.filename, "tweets": tweets })
+						    res.render("index", {"image": "uploads/" + req.file.filename, "tweets": tweets, "name": docu.name })
 						  }
 						});
 			      db.close();
