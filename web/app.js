@@ -158,7 +158,6 @@ app.post('/add_picture', save.single('save'), function(req, res){
 
 app.post('/new', save.array('save', 200), function(req, res){
 	// post an array of pictures? ~ 200 pictures
-	console.log(req.files)
 	if(!req.body.name && !req.body.fb && !req.body.tw){
 		res.send("Something isn't filled out")
 	} else if(req.files.length > 0){
@@ -170,12 +169,10 @@ app.post('/new', save.array('save', 200), function(req, res){
 			pictures: arr
 		})
 		user.save(function(err, user){
-			console.log(err)
 			shell.exec('python py/update.py "' + arr + '"', function(code, stdout, stderr){
 				if(stderr){
 					res.send(stderr)
 				} else {
-					console.log("finished")
 					res.send("Saved pictures")
 				}
 			})
