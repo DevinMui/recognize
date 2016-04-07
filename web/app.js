@@ -52,23 +52,25 @@ var userSchema = new mongoose.Schema({
   name: String,
   fb: String,
   tw: String,
-  pictures: [String]
+  pictures: Array
 });
 
 var find = function(db, file, callback) {
-   var cursor = db.collection('users').find({"pictures": file});
-   cursor.each(function(err, doc) {
-      assert.equal(err, null);
-      if (doc != null) {
-      	callback(doc)
-      }
-   });
+	var cursor = db.collection('users').find({"pictures": file});
+	cursor.each(function(err, doc) {
+	  assert.equal(err, null);
+	  //console.dir(doc + "MOTHERFUCKING NULL SHIT")
+	  if(doc != null){
+	  	console.dir(doc)
+	  	callback(doc)
+		}
+	});
 };
 
 // miscellanious functions
 
 function number() {
-  return shell.exec("python count.py", { silent:true }).output;
+  return shell.exec("python py/count.py", { silent:true }).output;
 }
 
 // express
@@ -91,30 +93,20 @@ app.engine('html', require('ejs').renderFile);
 app.set('view engine', 'ejs');
 
 var conn = mongoose.connection
-var file = ""
 
 var User = mongoose.model('User', userSchema)
-
-function number() {
-  return shell.exec("ls ./pictures | wc -l", { silent:true }).output;
-}
 
 app.get('/number', function(req, res){
 	console.log(number())
 	res.send(number())
 })
 
-app.get('/add', function(req, res){
-	res.render('add')
+app.get('/new', function(req, res){
+	res.render('new')
 })
 
 app.get('/add_face', function(req, res){
 	res.render('add_face')
-})
-
-app.post('/match', function(req, res){
-	file = req.body.match
-	res.send('Hello')
 })
 
 app.get('/', function(req, res){
@@ -122,34 +114,35 @@ app.get('/', function(req, res){
 })
 
 app.post('/', upload.single('picture'), function(req, res){
-	var arg = "public/uploads/" + req.file.filename
-	var options = {
-		args: [arg]
+	if(req.file != undefined){
+		var arg = "public/uploads/" + req.file.filename
+
+		shell.exec("python py/recognize.py " + arg, function(code, stdout, stderr){
+			console.log(stderr)
+			if(stderr) {
+				console.log(stderr)
+				res.send(stderr)
+			} else {
+				MongoClient.connect(url, function(err, db) {
+				  assert.equal(null, err);
+				  find(db, stdout, function(doc) {
+			  		var docu = doc
+			  		//console.log(docu)
+			  		var params = {screen_name: docu.tw, count: 5};
+			  		// get person's latest 5 tweets
+						client.get('statuses/user_timeline', params, function(error, tweets, response){
+						  if (!error) {
+						    res.render("index", {"image": "uploads/" + req.file.filename, "tweets": tweets })
+						  }
+						});
+			      db.close();
+				  });
+				});
+			}
+		})
+	} else {
+		res.send("No files selected")
 	}
-
-	shell.exec("python py/recognize.py " + arg, function(code, stdout, stderr){
-		if(stderr) throw stderr;
-		console.log('finished')
-
-		// something about these callbacks dont work
-		MongoClient.connect(url, function(err, db) {
-		  assert.equal(null, err);
-		  find(db, stdout, function(doc) {
-		  		console.log(doc.name)
-		  		console.log(doc.tw)
-		  		var params = {screen_name: doc.tw, count: 5};
-		  		// get person's latest 5 tweets
-					client.get('statuses/user_timeline', params, function(error, tweets, response){
-					  if (!error) {
-					    console.dir(tweets);
-					    res.render("index", {"image": req.file.filename, "tweets": tweets })
-					  }
-					});
-
-		      db.close();
-		  });
-		});
-	})
 })
 
 app.post('/add_picture', save.single('save'), function(req, res){
@@ -163,19 +156,34 @@ app.post('/add_picture', save.single('save'), function(req, res){
 	res.send("uploaded! training...")
 })
 
-app.post('/new', save.array('save', 100), function(req, res){
-	// post an array of pictures? ~ 100+ pictures
-	var user = new User ({
-		name: req.body.name,
-		fb: req.body.fb,
-		tw: req.body.tw,
-		pictures: req.files
-	})
-	user.save(function(err, user){
+app.post('/new', save.array('save', 200), function(req, res){
+	// post an array of pictures? ~ 200 pictures
+	console.log(req.files)
+	if(!req.body.name && !req.body.fb && !req.body.tw){
+		res.send("Something isn't filled out")
+	} else if(req.files > 0){
 		var arr = req.files.map(function(a) {return a.path;});
-		shell.exec('python update.py "' + arr + '"')
-	})
-	res.send("Saved pictures")
+
+		var user = new User ({
+			name: req.body.name,
+			fb: req.body.fb,
+			tw: req.body.tw,
+			pictures: arr
+		})
+		user.save(function(err, user){
+			console.log(err)
+			shell.exec('python py/update.py "' + arr + '"', function(code, stdout, stderr){
+				if(stderr){
+					res.send(stderr)
+				} else {
+					console.log("finished")
+					res.send("Saved pictures")
+				}
+			})
+		})
+	} else {
+		res.send("No files selected")
+	}
 })
 
 app.get('/about', function(req, res){

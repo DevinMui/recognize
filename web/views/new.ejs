@@ -5,10 +5,11 @@
     <%- include header.ejs %>
 	<h1>Add</h1>
     </br>
-	<form role="form" action="/new" method="post">
+	<form role="form" action="/new" method="post" enctype="multipart/form-data">
     	<input class=".form-control" type="text" id="name" placeholder="Name" name="name">
     	<input class=".form-control" type="text" id="fb" placeholder="Facebook" name="fb">
     	<input class=".form-control" type="text" id="tw" placeholder="Twitter" name="tw">
+    	<input class=".form-control" type="file" name="save" id="save" multiple>
     	<input class="btn btn-default" type="submit" id="input">
     </form>
 </body>
